@@ -11,7 +11,7 @@ import pytest
 from ticketbench import baseline
 from ticketbench.prompt import system_prompt, user_prompt
 from ticketbench.score import asserts, parse_answer, score
-from ticketbench.tickets import LABELS, TICKETS, Built, build
+from ticketbench.tickets import LABELS, TICKETS, Built, build, by_id
 
 
 @pytest.fixture(scope="module")
@@ -122,7 +122,10 @@ def test_unparsed_answer_fails(built):
 
 def test_capsight_baseline(built):
     got = {tid: baseline.answer(b)["root_cause"] for tid, b in built.items()}
-    assert got == {t.id: t.root_cause for t in TICKETS}
+    # capsight 0.3 misses these two: the cause is a chain across GTP-C and PFCP (t06), or
+    # an absence it does not look for (t09)
+    misses = {"t06-roaming-data-keeps-dropping", "t09-subscriber-not-in-capture"}
+    assert {tid for tid, label in got.items() if label != by_id(tid).root_cause} == misses
     # capsight finds no fault for t05's subscriber but has nothing to cite for it
     t05 = built["t05-cannot-attach-but-it-did"]
     assert not score(t05, baseline.answer(t05), score_reply=False).grounded

@@ -30,6 +30,8 @@ LABELS: dict[str, str] = {
     "user_plane_no_return_path": "The session is up but replies cannot come back "
     "(missing NAT or return route on SGi/N6).",
     "peer_not_answering": "A network element does not answer requests (timeouts).",
+    "ue_address_conflict": "Two sessions need the same UE IP address (for example one static "
+    "address on two APNs), so one is refused or torn down.",
     "no_fault_in_capture": "The capture shows this subscriber's procedures working.",
     "capture_insufficient": "The capture cannot show the cause (wrong place, wrong time, "
     "or the relevant traffic is missing).",
@@ -389,7 +391,341 @@ T05 = Ticket(
     "An agent that reports the loudest failure instead of the ticket's subscriber fails.",
 )
 
-TICKETS: tuple[Ticket, ...] = (T01, T02, T03, T04, T05)
+
+PFCP_EST_REQ, PFCP_EST_RESP, PFCP_REPORT_REQ, PFCP_REPORT_RESP = 50, 51, 56, 57
+PFCP_ACCEPTED, PFCP_SYSTEM_FAILURE = 1, 77
+GTP_SYSTEM_FAILURE = 72
+PCRF_HOST = bytes([192, 0, 2, 70])
+STATIC_IP = bytes([100, 64, 10, 20])  # RFC 6598 shared space, stands in for a static address
+
+
+class _Gateway:
+    """A PGW: GTP-C from the SGW, PFCP to its UPF, Gx to its PCRF."""
+
+    def __init__(self) -> None:
+        self.gtp_seq = 0x300
+        self.pfcp_seq = 10
+        self.seid = 0x9000
+        self.gx = g.TcpFlow(g.HOST_B, PCRF_HOST, 40010, 3868)
+        self.hbh = 0x900
+
+    def _next_pfcp(self) -> int:
+        self.pfcp_seq += 1
+        return self.pfcp_seq
+
+    def csr(self, t: float, imsi: str, apn: str, visited: str | None = None, tag=None) -> Frame:
+        self.gtp_seq += 1
+        ies = [g.ie_imsi(imsi), g.ie_apn(apn), g.ie_rat_type()]
+        if visited:  # over S8 from a visited network's SGW
+            ies += [g.ie_serving_network("001", visited), g.ie_fteid(g.S8_SGW_GTPC, self.gtp_seq)]
+        return Frame(t, g.gtpv2_frame(True, g.gtpv2(CS_REQ, self.gtp_seq, ies)), tag)
+
+    def csr_answer(self, t: float, cause: int, tag=None) -> Frame:
+        resp = g.gtpv2(CS_RESP, self.gtp_seq, [g.ie_cause(cause)], teid=0x2000 + self.gtp_seq)
+        return Frame(t, g.gtpv2_frame(False, resp), tag)
+
+    def establish(self, t: float, ue_ip: bytes, tag=None) -> tuple[Frame, int, int]:
+        """PFCP Session Establishment Request; returns the frame, its sequence and CP SEID."""
+        seq, self.seid = self._next_pfcp(), self.seid + 1
+        ies = [g.pfcp_fseid(self.seid), g.pfcp_create_pdr(ue_ip, "iot.example.org")]
+        frame = g.pfcp_frame(True, g.pfcp(PFCP_EST_REQ, seq, seid=0, ies=ies))
+        return Frame(t, frame, tag), seq, self.seid
+
+    def establish_answer(self, t: float, seq: int, seid: int, cause: int, tag=None) -> Frame:
+        return Frame(t, g.pfcp_frame(False, g.pfcp(PFCP_EST_RESP, seq, seid, cause)), tag)
+
+    def deleted_by_up(self, t: float, seid: int, tag=None) -> list[Frame]:
+        seq = self._next_pfcp()
+        report = g.pfcp(PFCP_REPORT_REQ, seq, seid=seid, ies=list(g.PFCP_DELETED_BY_UP))
+        return [
+            Frame(t, g.pfcp_frame(False, report), tag),
+            Frame(t + 0.004, g.pfcp_frame(True, g.pfcp(PFCP_REPORT_RESP, seq, 0x77, 1))),
+        ]
+
+    def gx_initial(self, t: float, imsi: str, apn: str, result: int = 2001, tag=None):
+        self.hbh += 2
+        ccr = g.ccr(self.hbh, app=g.GX_APP, req_type=g.CC_INITIAL, imsi=imsi, apn=apn)
+        cca = g.cca(self.hbh, app=g.GX_APP, req_type=g.CC_INITIAL, result=result)
+        return [
+            Frame(t, self.gx.frame(True, ccr)),
+            Frame(t + 0.01, self.gx.frame(False, cca), tag),
+        ]
+
+
+def _t06() -> list[Frame]:
+    """Two APNs ask for one static address; each new session knocks the other out."""
+    gw = _Gateway()
+    frames: list[Frame] = []
+    t = T0
+    apns = ("iot.example", "data.example")
+    req, seq, current = gw.establish(t + 0.05, STATIC_IP)
+    frames += [
+        gw.csr(t, IMSI(11), apns[0], visited="02"),
+        req,
+        gw.establish_answer(t + 0.051, seq, current, PFCP_ACCEPTED),
+        gw.csr_answer(t + 0.06, GTP_ACCEPTED),
+    ]
+    for i in range(1, 7):
+        t += 2.1
+        apn = apns[i % 2]
+        first = i == 1
+        req, seq, seid = gw.establish(t + 0.05, STATIC_IP, "refused_req" if first else None)
+        frames += [
+            gw.csr(t, IMSI(11), apn, visited="02"),
+            req,
+            *gw.deleted_by_up(t + 0.0505, current, "deleted" if first else None),
+            gw.establish_answer(
+                t + 0.051, seq, seid, PFCP_SYSTEM_FAILURE, "refused" if first else None
+            ),
+            gw.csr_answer(t + 0.06, GTP_SYSTEM_FAILURE, "gtp_72" if first else None),
+        ]
+        retry_req, seq, current = gw.establish(t + 0.35, STATIC_IP)
+        frames += [
+            gw.csr(t + 0.3, IMSI(11), apn, visited="02"),
+            retry_req,
+            gw.establish_answer(t + 0.351, seq, current, PFCP_ACCEPTED),
+            gw.csr_answer(t + 0.36, GTP_ACCEPTED),
+        ]
+    return frames
+
+
+T06 = Ticket(
+    id="t06-roaming-data-keeps-dropping",
+    ticket=(
+        f"Our trackers roaming abroad (IMSI {IMSI(11)} for example) connect, then lose "
+        "data a few seconds later, over and over. The roaming partner's network must be "
+        "unstable. Can you raise it with them?"
+    ),
+    subscriber=IMSI(11),
+    root_cause="ue_address_conflict",
+    frames=_t06,
+    key_tags=("refused", "deleted", "refused_req", "gtp_72"),
+    checks=(
+        Check("refused", f"pfcp.cause == {PFCP_SYSTEM_FAILURE}"),
+        Check("deleted", "pfcp.srreq_flags.psdbu == 1"),
+        Check("refused_req", "pfcp.ue_ip_addr_ipv4 == 100.64.10.20"),
+        Check("gtp_72", f"gtpv2.cause == {GTP_SYSTEM_FAILURE}"),
+    ),
+    reply_must=(
+        r"(same|one|shared|single|identical) (static )?(ip|address)|(ip|address).{0,40}"
+        r"\b(both|two)\b.{0,20}apns?",
+        r"\bapns?\b",
+    ),
+    reply_must_not=(
+        r"(roaming partner|visited network|partner's network) (is|was) (unstable|at fault|"
+        r"the (cause|problem))",
+        r"we (will|'ll) raise (it|this) with (them|the (roaming )?partner)",
+    ),
+    reference_reply=(
+        "This is on our side, not the roaming partner's. Your tracker opens sessions on two "
+        "APNs, iot.example and data.example, and both use the same static IP address. Our "
+        "gateway cannot hold two sessions on one address, so each new session is refused and "
+        "the other one is torn down, and the device reconnects in a loop. We will give each "
+        "APN its own address, or you can set the trackers to use one APN."
+    ),
+    notes="Every message says 'system failure' (GTP 72, PFCP 77). Only the UPF's Session "
+    "Report (session deleted by the UP function) and the shared UE address in both PFCP "
+    "requests explain it. Retries succeed, so the customer sees flapping, not an outage.",
+)
+
+
+def _t07() -> list[Frame]:
+    """The PCRF refuses the policy for the new plan; the PGW only says 'system failure'."""
+    gw = _Gateway()
+    frames: list[Frame] = []
+    for i, t in enumerate((T0, T0 + 3, T0 + 6, T0 + 9)):
+        ok_imsi, bad_imsi = IMSI(13), IMSI(12)
+        frames += [
+            gw.csr(t, ok_imsi, "fleet.example"),
+            *gw.gx_initial(t + 0.02, ok_imsi, "fleet.example"),
+            gw.csr_answer(t + 0.05, GTP_ACCEPTED),
+        ]
+        first = i == 0
+        frames += [
+            gw.csr(t + 1, bad_imsi, "fleet.example"),
+            *gw.gx_initial(
+                t + 1.02, bad_imsi, "fleet.example", result=5003, tag="cca" if first else None
+            ),
+            gw.csr_answer(t + 1.05, GTP_SYSTEM_FAILURE, "gtp_72" if first else None),
+        ]
+    return frames
+
+
+T07 = Ticket(
+    id="t07-new-plan-no-data",
+    ticket=(
+        "We moved some SIMs to the new Fleet Pro plan this morning and those lost data. "
+        f"SIMs we did not move still work. Example of a moved SIM: {IMSI(12)}. Your NOC said "
+        "the gateway reports 'system failure'. Is the gateway broken?"
+    ),
+    subscriber=IMSI(12),
+    root_cause="policy_rejected",
+    frames=_t07,
+    key_tags=("cca",),
+    checks=(
+        Check("cca", "diameter.Result-Code == 5003"),
+        Check("gtp_72", f"gtpv2.cause == {GTP_SYSTEM_FAILURE}"),
+    ),
+    reply_must=(r"(polic|pcrf|plan|rule|profile|authori[sz])",),
+    reply_must_not=(r"gateway (is|was) (broken|faulty|down)", r"(replace|swap) (the )?sims?"),
+    reference_reply=(
+        "The gateway itself is fine: SIMs on the old plan get sessions from it. For the moved "
+        "SIMs, our policy server refuses to authorise the data session (authorization "
+        "rejected), and the gateway then reports a generic system failure. The Fleet Pro "
+        "plan's policy is not set up correctly for these SIMs; we are fixing the plan "
+        "configuration."
+    ),
+    notes="The GTP cause (72) points at the gateway. The reason is one hop away on Gx: CCA "
+    "Result-Code 5003. Another SIM on the same APN keeps working.",
+)
+
+
+def _t08() -> list[Frame]:
+    """The UPF stops answering PFCP; sessions fail after the gateway gives up."""
+    gw = _Gateway()
+    frames: list[Frame] = []
+    req, seq, seid = gw.establish(T0 + 0.05, g.UE_IP)
+    frames += [
+        gw.csr(T0, IMSI(14), "iot.example"),
+        req,
+        gw.establish_answer(T0 + 0.051, seq, seid, PFCP_ACCEPTED),
+        gw.csr_answer(T0 + 0.06, GTP_ACCEPTED),
+    ]
+    for n, (t, imsi) in enumerate(((T0 + 60, IMSI(15)), (T0 + 75, IMSI(16)), (T0 + 90, IMSI(15)))):
+        req, seq, seid = gw.establish(t + 0.05, g.UE_IP, "unanswered" if n == 0 else None)
+        frames += [gw.csr(t, imsi, "iot.example"), req]
+        for k in (1, 2):  # the gateway retransmits, then gives up
+            again = g.pfcp(PFCP_EST_REQ, seq, seid=0, ies=[g.pfcp_fseid(seid)])
+            frames.append(Frame(t + 0.05 + k, g.pfcp_frame(True, again)))
+        frames.append(gw.csr_answer(t + 3.1, GTP_SYSTEM_FAILURE, "gtp_72" if n == 0 else None))
+    return frames
+
+
+T08 = Ticket(
+    id="t08-sessions-time-out",
+    ticket=(
+        "Since about 14:01 UTC none of our devices can start a data session. They wait a "
+        f"few seconds and then fail. Example IMSI {IMSI(15)}. Did you change the APN "
+        "settings?"
+    ),
+    subscriber=IMSI(15),
+    root_cause="peer_not_answering",
+    frames=_t08,
+    key_tags=("unanswered",),
+    checks=(
+        Check("unanswered", f"pfcp.msg_type == {PFCP_EST_REQ}"),
+        Check("gtp_72", f"gtpv2.cause == {GTP_SYSTEM_FAILURE}"),
+        Check(None, f"pfcp.msg_type == {PFCP_EST_RESP} && frame.time_relative > 30"),
+    ),
+    reply_must=(
+        r"(stopped|not|n't|never) (respond|answer)\w*|unresponsive|time[sd]? ?out|timeout"
+        r"|no (response|answer)",
+    ),
+    reply_must_not=(
+        r"(change|update|correct|fix) (the |your )?apn",
+        r"(device|sim|apn) (is|was) (misconfigured|wrong|faulty)",
+    ),
+    reference_reply=(
+        "Nothing changed in your APN settings. Since 14:01 UTC one of our core components, "
+        "the user-plane function, stopped answering our gateway, so every new data session "
+        "times out and fails after a few seconds. This affects all devices, not only yours. "
+        "We are restoring it now."
+    ),
+    notes="The gateway answers with a vague 72 after 3 s. The reason is visible only in "
+    "PFCP: Session Establishment requests retransmitted with no answer, for every "
+    "subscriber after 14:01, while the session at 14:00 worked.",
+)
+
+
+def _t09() -> list[Frame]:
+    """A healthy capture that never contains the ticket's subscriber."""
+    s6a, s11 = _S6a(), _S11()
+    frames: list[Frame] = []
+    for i, imsi in enumerate((IMSI(18), IMSI(19), IMSI(20))):
+        frames += s6a.attach(T0 + 5 * i, imsi)
+        frames += s11.create_session(T0 + 5 * i + 1, imsi, "iot.example")
+    return frames
+
+
+T09 = Ticket(
+    id="t09-subscriber-not-in-capture",
+    ticket=(
+        f"SIM {IMSI(17)} cannot attach. Here is a capture from your core from when the "
+        "customer tried. What is wrong with the SIM?"
+    ),
+    subscriber=IMSI(17),
+    root_cause="capture_insufficient",
+    frames=_t09,
+    key_tags=(),
+    checks=(
+        Check(None, f'e212.imsi == "{IMSI(17)}"'),
+        Check(None, f'diameter.User-Name == "{IMSI(17)}"'),
+    ),
+    reply_must=(
+        r"(not (appear|present|seen|included|in (the|this) capture)|no (trace|sign|messages|"
+        r"traffic|signalling|signaling|record)|does(n't| not) (appear|show|contain|include)|"
+        r"isn't in|absent|never (appears|shows))",
+    ),
+    reply_must_not=(
+        r"(not provisioned|user unknown)",
+        r"(attached|connected) (successfully|normally)",
+    ),
+    reference_reply=(
+        "We can't tell yet: this SIM does not appear anywhere in the capture. The capture only "
+        "shows three other SIMs attaching normally, so it was taken at another time or on "
+        "another part of the network. Please send the exact time of a failed attempt and we "
+        "will capture on the right interface."
+    ),
+    notes="Every procedure in the capture works, so 'no fault' is tempting, but the ticket's "
+    "IMSI never appears. Nothing can be cited for the cause; the honest answer is that the "
+    "capture cannot show it.",
+)
+
+
+def _t10() -> list[Frame]:
+    s6a = _S6a()
+    return [
+        *s6a.attach(T0, IMSI(22)),
+        *s6a.exchange(T0 + 3, AIR, IMSI(21), tags=(None, "aia_ok")),
+        *s6a.exchange(T0 + 3.5, ULR, IMSI(21), experimental=5004, tags=("ulr", "ula_5004")),
+        *s6a.exchange(T0 + 20, AIR, IMSI(21)),
+        *s6a.exchange(T0 + 20.5, ULR, IMSI(21), experimental=5004),
+    ]
+
+
+T10 = Ticket(
+    id="t10-no-service-abroad",
+    ticket=(
+        f"Our device {IMSI(21)} works at home, but abroad it shows 'no service'. It fails "
+        "right at authentication, so we think the keys on the SIM are bad. Should we "
+        "replace it?"
+    ),
+    subscriber=IMSI(21),
+    root_cause="roaming_not_allowed",
+    frames=_t10,
+    key_tags=("ula_5004",),
+    checks=(
+        Check("ulr", f'diameter.User-Name == "{IMSI(21)}"'),
+        Check("ula_5004", "diameter.Experimental-Result-Code == 5004"),
+        Check("aia_ok", "diameter.Result-Code == 2001"),
+    ),
+    reply_must=(r"roaming",),
+    reply_must_not=(
+        r"(keys?|authentication|credentials) (is|are|was|were) (wrong|bad|failing|broken)",
+        r"(replace|swap) (the )?sim",
+    ),
+    reference_reply=(
+        "The SIM and its keys are fine: authentication succeeds. The network then refuses the "
+        "location update because roaming is not allowed for this SIM in that country "
+        "(roaming not allowed). We need to enable roaming on the subscription or for that "
+        "network; no replacement is needed."
+    ),
+    notes="The customer blames authentication, which the capture shows succeeding (AIA "
+    "2001). The refusal is the Update Location Answer, 5004.",
+)
+
+
+TICKETS: tuple[Ticket, ...] = (T01, T02, T03, T04, T05, T06, T07, T08, T09, T10)
 
 
 def by_id(ticket_id: str) -> Ticket:

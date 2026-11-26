@@ -313,8 +313,14 @@ def _pfcp_ie(ie_type: int, data: bytes) -> bytes:
     return struct.pack("!HH", ie_type, len(data)) + data
 
 
-def pfcp(msg_type: int, seq: int, seid: int | None = None, cause: int | None = None) -> bytes:
-    body = _pfcp_ie(19, bytes([cause])) if cause is not None else b""
+def pfcp(
+    msg_type: int,
+    seq: int,
+    seid: int | None = None,
+    cause: int | None = None,
+    ies: list[bytes] | tuple[bytes, ...] = (),
+) -> bytes:
+    body = (_pfcp_ie(19, bytes([cause])) if cause is not None else b"") + b"".join(ies)
     if seid is None:
         header_rest = seq.to_bytes(3, "big") + b"\x00"
         flags = 0x20
@@ -323,6 +329,23 @@ def pfcp(msg_type: int, seq: int, seid: int | None = None, cause: int | None = N
         flags = 0x21
     length = len(header_rest) + len(body)
     return bytes([flags, msg_type]) + struct.pack("!H", length) + header_rest + body
+
+
+def pfcp_fseid(seid: int, ipv4: bytes = HOST_B) -> bytes:
+    """F-SEID: the SEID the UPF must use towards the SMF for this session."""
+    return _pfcp_ie(57, bytes([0x02]) + struct.pack("!Q", seid) + ipv4)
+
+
+def pfcp_create_pdr(ue_ip: bytes, instance: str = "internet") -> bytes:
+    """Create PDR whose PDI carries the UE address and the network instance."""
+    labels = b"".join(bytes([len(part)]) + part.encode() for part in instance.split("."))
+    pdi = _pfcp_ie(20, b"\x00") + _pfcp_ie(22, labels) + _pfcp_ie(93, bytes([0x02]) + ue_ip)
+    pdr = _pfcp_ie(56, struct.pack("!H", 1)) + _pfcp_ie(29, struct.pack("!I", 255))
+    return _pfcp_ie(1, pdr + _pfcp_ie(2, pdi))
+
+
+# Session Report Request IEs: usage report, and "PFCP session deleted by the UP function".
+PFCP_DELETED_BY_UP = (_pfcp_ie(39, b"\x02"), _pfcp_ie(161, b"\x01"))
 
 
 def pfcp_frame(from_smf: bool, payload: bytes) -> bytes:

@@ -9,7 +9,9 @@ Scored on:
 
 - root cause: the label matches the ground truth;
 - evidence: every cited frame exists in the capture (a frame number beyond the capture is a
-  hallucination), and at least one cited frame is a key frame of the ground truth (grounded);
+  hallucination), and at least one cited frame is a key frame of the ground truth (grounded).
+  A ticket whose truth is an absence (the subscriber is not in the capture) has no key
+  frames; there, any answer without invented frames is grounded;
 - reply: the customer reply matches every required pattern and asserts no forbidden one (the
   forbidden ones are what a wrong or careless reply says: "the SIM is faulty", "change the
   APN"; "no need to change the APN" is not asserting it).
@@ -121,7 +123,7 @@ def score(built: Built, answer: dict[str, Any] | None, score_reply: bool = True)
         root_cause_ok=label == t.root_cause,
         cited=cited,
         nonexistent=[n for n in cited if not 1 <= n <= built.frame_count],
-        grounded=bool(set(cited) & built.key_frames),
+        grounded=bool(set(cited) & built.key_frames) if built.key_frames else True,
         reply_scored=score_reply,
     )
     if score_reply:

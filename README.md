@@ -15,9 +15,11 @@ the customer. Scoring is deterministic:
 Captures hold distractors on purpose: other subscribers failing, healthy procedures, a ticket
 whose subscriber has no fault at all.
 
-Work in progress: 5 tickets so far, aiming for about 40. See [docs/DESIGN.md](docs/DESIGN.md)
-and [docs/RESULTS.md](docs/RESULTS.md). First run (Sonnet 5.5): both agent arms 5/5, which
-says these first tickets are too easy; the next ones are built to be harder.
+Work in progress: 10 tickets so far, aiming for about 40. See [docs/DESIGN.md](docs/DESIGN.md)
+and [docs/RESULTS.md](docs/RESULTS.md). First run (Sonnet 5.5, tickets 1-5): both agent arms
+5/5, so tickets 6-10 are built to be harder: causes that sit one protocol away from the
+error code, a session conflict that only shows as alternating "system failure", and a
+capture that cannot answer the question.
 
 ## Try it
 
