@@ -18,6 +18,7 @@ from ticketbench.tickets import Built
 
 # (rule id prefix, verdict pattern or "", label): first match wins.
 RULE_LABELS: tuple[tuple[str, str, str], ...] = (
+    ("session.address_conflict", "", "ue_address_conflict"),
     ("diameter.result", r"USER_UNKNOWN|UNKNOWN_SUBSCRIPTION", "subscriber_unknown"),
     ("diameter.result", r"ROAMING_NOT_ALLOWED|RAT_NOT_ALLOWED", "roaming_not_allowed"),
     ("diameter.result", r"AUTHENTICATION|AUTHORIZATION_REJECTED", "authentication_failure"),
@@ -28,7 +29,7 @@ RULE_LABELS: tuple[tuple[str, str, str], ...] = (
     ("gtpu.one_way", "", "user_plane_no_return_path"),
     ("pcc.credit", "", "credit_limit_reached"),
     ("pcc.", "", "policy_rejected"),
-    ("roaming.", "", "roaming_not_allowed"),
+    ("roaming.", r"not allowed|ROAMING_NOT_ALLOWED", "roaming_not_allowed"),
     ("map.unanswered", "", "peer_not_answering"),
     ("map.error", r"Unknown subscriber|unknownSubscriber", "subscriber_unknown"),
     ("map.error", r"Roaming not allowed|roamingNotAllowed", "roaming_not_allowed"),

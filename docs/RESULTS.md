@@ -1,5 +1,10 @@
 # Results
 
+Tickets 6-10 (added 2026-11-26) have not been run by an agent yet. capsight 0.3 alone gets
+3 of the 5 root causes; it misses the session conflict (a chain across GTP-C and PFCP) and
+the capture that does not contain the subscriber. The label list gained
+`ue_address_conflict`, so later runs see a slightly longer prompt than the first one.
+
 ## 2026-11-26: first run, 5 tickets, Claude Sonnet 5.5
 
 One run per ticket through `claude -p` (Claude subscription), no built-in tools, only the

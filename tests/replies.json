@@ -43,5 +43,55 @@
   "bad": [
    "Your SIM is not provisioned in our database, we will add it."
   ]
+ },
+ "t06-roaming-data-keeps-dropping": {
+  "good": [
+   "This is on our side, not the roaming partner's. Your tracker opens sessions on two APNs, iot.example and data.example, and both use the same static IP address. Our gateway cannot hold two sessions on one address, so each new session is refused and the other one is torn down, and the device reconnects in a loop. We will give each APN its own address, or you can set the trackers to use one APN.",
+   "The roaming partner is fine. Your device uses two APNs, and our subscription gives both of them one static IP. When the second session comes up, our core refuses it and drops the first, so the tracker keeps reconnecting. We'll fix the address setup; setting the device to a single APN also stops it."
+  ],
+  "bad": [
+   "The roaming partner's network is unstable in that area. We will raise it with them and update you.",
+   "Looks like a temporary system failure on our gateway. Please retry later."
+  ]
+ },
+ "t07-new-plan-no-data": {
+  "good": [
+   "The gateway itself is fine: SIMs on the old plan get sessions from it. For the moved SIMs, our policy server refuses to authorise the data session (authorization rejected), and the gateway then reports a generic system failure. The Fleet Pro plan's policy is not set up correctly for these SIMs; we are fixing the plan configuration.",
+   "Your SIMs on the old plan still connect through the same gateway, so it isn't broken. The PCRF refuses the session for SIMs on Fleet Pro (DIAMETER_AUTHORIZATION_REJECTED), so the plan's policy rules need fixing on our side."
+  ],
+  "bad": [
+   "The gateway is broken and returning system failure. Our team is restarting it.",
+   "Please swap the SIMs for new ones from the Fleet Pro batch."
+  ]
+ },
+ "t08-sessions-time-out": {
+  "good": [
+   "Nothing changed in your APN settings. Since 14:01 UTC one of our core components, the user-plane function, stopped answering our gateway, so every new data session times out and fails after a few seconds. This affects all devices, not only yours. We are restoring it now.",
+   "No, we didn't change any APN settings. Our gateway isn't getting a response from the user-plane function since 14:01 UTC, so new sessions time out. It's a core issue affecting everyone and we're on it."
+  ],
+  "bad": [
+   "It looks like the APN on your devices is misconfigured. Please update the APN and retry.",
+   "Your devices are fine on our side; please change the APN to iot.example."
+  ]
+ },
+ "t09-subscriber-not-in-capture": {
+  "good": [
+   "We can't tell yet: this SIM does not appear anywhere in the capture. The capture only shows three other SIMs attaching normally, so it was taken at another time or on another part of the network. Please send the exact time of a failed attempt and we will capture on the right interface.",
+   "This capture doesn't contain any traffic for that SIM, only other devices attaching successfully, so we can't see the failure in it. Please send the time of the next failed attempt."
+  ],
+  "bad": [
+   "The SIM is not provisioned in our HSS; we'll add it now.",
+   "The SIM attached successfully in the capture, so there is no problem on our side."
+  ]
+ },
+ "t10-no-service-abroad": {
+  "good": [
+   "The SIM and its keys are fine: authentication succeeds. The network then refuses the location update because roaming is not allowed for this SIM in that country (roaming not allowed). We need to enable roaming on the subscription or for that network; no replacement is needed.",
+   "Authentication actually works for this SIM, so the keys are fine and there's no need to replace it. The HSS rejects the location update abroad with 'roaming not allowed'; we need to enable roaming for that country on the plan."
+  ],
+  "bad": [
+   "The keys on the SIM are bad, so authentication is failing. We'll send a replacement SIM.",
+   "Please replace the SIM; it fails authentication abroad."
+  ]
  }
 }
