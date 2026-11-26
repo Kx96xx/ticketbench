@@ -1,0 +1,47 @@
+{
+ "t01-new-sim-never-attaches": {
+  "good": [
+   "Hello, thank you for the capture. Your SIM is not faulty, so a replacement won't help. Our core network received the SIM's connection attempts for IMSI 001010000000103. It rejected them with 'user unknown' because that IMSI is not provisioned in our subscriber database. The other two SIMs registered normally. We will check the activation of 001010000000103 and provision it. Please also confirm the IMSI printed on the SIM card is exactly 001010000000103. We will tell you when it is done, and then the tracker should attach.",
+   "Hi, the SIM isn't faulty, so you don't need a replacement. Our subscriber database (HSS) doesn't have IMSI 001010000000103 provisioned. When the tracker tried to attach, the HSS answered 'user unknown' twice, so it keeps searching. We'll provision the IMSI and ask you to power-cycle the tracker. Please also check that the IMSI on the SIM matches the one you activated."
+  ],
+  "bad": [
+   "Sorry about that, the SIM looks faulty. We will send a replacement today."
+  ]
+ },
+ "t02-connected-no-data": {
+  "good": [
+   "Your APN setting is not the problem. The network accepted your session for APN 'internet' and gave the phone the address 10.45.0.5. Your ping packets do reach our internet-facing edge, but they leave with that private address and no reply ever comes back. That points to a missing address translation (NAT) or return route on our side, not to the phone or its settings. We are passing this to our core network team to fix. Restarting the phone again will not help. We will update you once it is corrected.",
+   "Your APN setting is fine. Our capture shows the 'internet' APN was accepted and your phone was given the address 10.45.0.5. Your pings leave the phone and reach the core network, but no replies come back. That points to a missing return route or address translation (NAT) on our internet-facing side, not to your phone or APN. We are escalating this to our core network team to fix the return path. Restarting the phone will not help. We will update you once it is fixed."
+  ],
+  "bad": [
+   "Please change the APN to 'internet' and restart the phone."
+  ]
+ },
+ "t03-data-stopped-midday": {
+  "good": [
+   "Hello, we found no outage. The capture shows the charging system stopped data for device 001010000000105 at about 14:02 UTC. It returned a \"credit limit reached\" result, which means the data balance or quota on this subscription is used up. That is why the device still shows as connected but passes no data. Please check the plan's balance or quota and top up or raise the limit. Data should resume after that. Another device on the same link kept working normally. Tell us if it doesn't resume.",
+   "Hello, we found no outage. The capture shows our charging system refused further credit for your device (IMSI 001010000000105) at the 14:02 update. It returned 'credit limit reached' with an instruction to terminate the service. The device can still look connected, but data is blocked because its balance or quota is used up. Please check the data plan and top up the balance or raise the limit. If data doesn't resume after that, reply to this ticket and we'll check again."
+  ],
+  "bad": [
+   "Data stopped due to an outage on our side; it is fixed now."
+  ]
+ },
+ "t04-routers-no-data": {
+  "good": [
+   "Thanks for your report. Our network is working normally. The capture shows your new routers asking for the APN 'internet.wrong', which isn't provisioned on our network. We reject it with 'Missing or unknown APN', and that causes the 'PDP context activation failed' message. Your older routers work because they use a valid APN. Please correct the APN in the new routers' configuration to the one assigned to your SIMs. The working SIM in our capture uses 'iot.example', but please confirm that this is the right one for your account. Then retry. If it still fails, send us the new attempt time and we'll check again.",
+   "The fault is in the APN setting on your new routers. It is not a network issue. IMSI 001010000000107 requested the APN 'internet.wrong' three times, and our network rejected each attempt as an unknown APN. Your older routers work because they use a valid APN. Please set the new routers to the same APN as the older ones and retry. If it still fails, send us the APN you used and the time of the attempt."
+  ],
+  "bad": [
+   "Our network was having issues this afternoon. Please retry now."
+  ]
+ },
+ "t05-cannot-attach-but-it-did": {
+  "good": [
+   "Thank you for your report. In the capture you sent, SIM 001010000000109 attaches normally. Authentication and location update succeed, and the data session on APN iot.example is accepted. The failing requests in the capture are for a different SIM, 001010000000110. The network reports that SIM as unknown. Please check which SIM was in the device during the test. If 109 still fails, send a new capture taken while that SIM is being tested, with the exact time of the attempt. If 110 is meant to be in service, tell us and we will check its provisioning.",
+   "Thank you for your report. In the capture we received, SIM 001010000000109 attaches normally: authentication, location update and data session all succeed. The failures in the capture are for a different SIM, 001010000000110, which is not provisioned in our subscriber database. Please check which SIM you were testing and whether the IMSI was read correctly. If the failing SIM really is ...110, tell us and we will check its provisioning. If ...109 still fails, send a new capture taken during a failed attempt, with the exact time."
+  ],
+  "bad": [
+   "Your SIM is not provisioned in our database, we will add it."
+  ]
+ }
+}

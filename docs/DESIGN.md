@@ -49,8 +49,8 @@ Target mix for about 40 tickets:
 | Arm | Status |
 | --- | --- |
 | capsight alone, no AI (rules, findings filtered to the subscriber, mapped to a label) | done |
-| agent + one `run_tshark` tool | planned |
-| agent + tshark-mcp | planned |
+| agent + one `run_tshark` tool | done |
+| agent + tshark-mcp | done |
 | agent + tshark-mcp + capsight's JSON findings as a tool | planned |
 
 Each model run states a cap on runs and cost, records every tool call, tokens and cost, and
@@ -68,7 +68,8 @@ commits the transcripts with the results. One run per ticket is noisy; report re
 - The tickets and captures are written by capsight's author with capsight's packet builder,
   which favours capsight on the first third. The other two thirds exist to measure what rules
   cannot do.
-- Reply checks are regular expressions: coarse, but repeatable and cheap. Ambiguous replies
-  are fixed by tightening the pattern and adding a test, not by a model judge.
+- Reply checks are regular expressions: coarse, but repeatable and cheap. Every reply a model
+  run produces is read, and any the checks misjudge goes into `tests/replies.json` with its
+  hand verdict before the pattern is fixed; old runs are rescored without a model call.
 - Synthetic captures are small and clean. Busy captures with thousands of subscribers are a
   later step.

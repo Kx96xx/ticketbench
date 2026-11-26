@@ -182,7 +182,11 @@ T01 = Ticket(
         Check("air", f'diameter.User-Name == "{IMSI(3)}"'),
         Check("aia", "diameter.Experimental-Result-Code == 5001"),
     ),
-    reply_must=(r"not (yet )?(provisioned|registered|known|found|activated|set up)",),
+    # "not provisioned", "doesn't have IMSI ... provisioned", "user unknown"
+    reply_must=(
+        r"(\bnot\b|n't|never).{0,50}(provisioned|registered|activated|set up|known|found)"
+        r"|\bunknown\b|unprovisioned",
+    ),
     reply_must_not=(
         r"(sim|card) (is|was|looks) (faulty|defective|damaged|broken)",
         r"send (you )?(a )?replacement",
@@ -371,8 +375,9 @@ T05 = Ticket(
     key_tags=("cs_accept",),
     checks=(Check("cs_accept", f"gtpv2.cause == {GTP_ACCEPTED}"),),
     reply_must=(
-        r"(attach(ed)?|connect(ed)?|session).{0,80}(success|accepted|worked|working|"
-        r"completed)|(success|accepted|completed).{0,80}(attach|session)",
+        # "attached successfully", "attaches normally ... all succeed", "was accepted"
+        r"(attach\w*|connect\w*|session)\b.{0,80}(succe\w*|accepted|work\w*|normal\w*|"
+        r"complet\w*)|(succe\w*|accepted|complet\w*).{0,80}(attach|session)",
     ),
     reply_must_not=(r"(your|this) (sim|imsi|subscriber) is not provisioned",),
     reference_reply=(

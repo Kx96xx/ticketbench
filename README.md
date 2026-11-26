@@ -15,7 +15,9 @@ the customer. Scoring is deterministic:
 Captures hold distractors on purpose: other subscribers failing, healthy procedures, a ticket
 whose subscriber has no fault at all.
 
-Work in progress: 5 tickets so far, aiming for about 40. See [docs/DESIGN.md](docs/DESIGN.md).
+Work in progress: 5 tickets so far, aiming for about 40. See [docs/DESIGN.md](docs/DESIGN.md)
+and [docs/RESULTS.md](docs/RESULTS.md). First run (Sonnet 5.5): both agent arms 5/5, which
+says these first tickets are too easy; the next ones are built to be harder.
 
 ## Try it
 
@@ -27,13 +29,15 @@ uv run ticketbench list               # tickets and ground-truth labels
 uv run ticketbench build captures/    # write the captures
 uv run ticketbench prompt t04-routers-no-data
 uv run ticketbench baseline           # capsight's rules alone, no AI
+uv run ticketbench run --arm tshark-only --arm tshark-mcp --model claude-sonnet-5-5 \
+    --max-runs 10 --max-usd 5         # agent arms via claude -p (costs tokens)
 uv run pytest                         # the ground truth is in every capture (via tshark)
 ```
 
 ## Arms
 
-capsight alone (no AI) is the baseline. Next: an agent with plain tshark, with
-[tshark-mcp](https://github.com/Kx96xx/tshark-mcp), and with tshark-mcp plus
+capsight alone (no AI), an agent with plain tshark, and an agent with
+[tshark-mcp](https://github.com/Kx96xx/tshark-mcp). Next: tshark-mcp plus
 [capsight](https://github.com/Kx96xx/capsight).
 
 Every capture is synthetic: test-network IMSIs (001/01), RFC 5737 addresses, example.org.

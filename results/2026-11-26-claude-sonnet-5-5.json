@@ -1,0 +1,388 @@
+{
+ "meta": {
+  "date": "2026-11-26",
+  "driver": "claude-code",
+  "model": "claude-sonnet-5-5",
+  "arms": [
+   "tshark-only",
+   "tshark-mcp"
+  ],
+  "tickets": [
+   "t01-new-sim-never-attaches",
+   "t02-connected-no-data",
+   "t03-data-stopped-midday",
+   "t04-routers-no-data",
+   "t05-cannot-attach-but-it-did"
+  ],
+  "repeats": 1,
+  "planned_runs": 10,
+  "skipped": 0,
+  "note": "Claude subscription through claude -p, one run per ticket. Rescored offline after the t01 and t05 reply patterns were widened: both failing replies were correct on reading (\"doesn't have IMSI ... provisioned\", \"attaches normally ... succeed\"); rows keep passed_as_run."
+ },
+ "summary": {
+  "tshark-only": {
+   "tickets": 5,
+   "passed": 5,
+   "root_cause_correct": 5,
+   "grounded": 5,
+   "frames_cited": 22,
+   "frames_hallucinated": 0,
+   "replies_ok": 5,
+   "mean_calls": 3.2,
+   "cost_usd": 0.1367,
+   "mean_seconds": 13.4
+  },
+  "tshark-mcp": {
+   "tickets": 5,
+   "passed": 5,
+   "root_cause_correct": 5,
+   "grounded": 5,
+   "frames_cited": 25,
+   "frames_hallucinated": 0,
+   "replies_ok": 5,
+   "mean_calls": 2.6,
+   "cost_usd": 0.3274,
+   "mean_seconds": 11.0
+  }
+ },
+ "rows": [
+  {
+   "arm": "tshark-only",
+   "ticket": "t01-new-sim-never-attaches",
+   "parsed": true,
+   "root_cause": "subscriber_unknown",
+   "root_cause_ok": true,
+   "cited": [
+    9,
+    10,
+    11,
+    12
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 3,
+   "tools": [
+    "run_tshark",
+    "run_tshark",
+    "run_tshark"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 9919,
+   "output_tokens": 934,
+   "turns": 4,
+   "cost_usd": 0.0219068,
+   "seconds": 14.89,
+   "problems": [],
+   "answer": "5001 is DIAMETER_ERROR_USER_UNKNOWN.\n\n**Root cause:** The HSS doesn't know IMSI 001010000000103. The SIM isn't faulty.\n\n```json\n{\"root_cause\": \"subscriber_unknown\", \"subscriber\": \"001010000000103\", \"evidence_frames\": [9, 10, 11, 12], \"summary\": \"The MME sent Authentication-Information Requests for IMSI 001010000000103 in frames 9 and 11. The HSS answered both with Experimental-Result 5001 (USER_UNKNOWN) in frames 10 and 12, so the IMSI is not provisioned. The other two SIMs (\u2026101 and \u2026102) got 2001 success on both authentication and location update.\", \"customer_reply\": \"Hello, thank you for the capture. Your SIM is not faulty, so a replacement won't help. Our core network received the SIM's connection attempts for IMSI 001010000000103. It rejected them with 'user unknown' because that IMSI is not provisioned in our subscriber database. The other two SIMs registered normally. We will check the activation of 001010000000103 and provision it. Please also confirm the IMSI printed on the SIM card is exactly 001010000000103. We will tell you when it is done, and then the tracker should attach.\"}\n```"
+  },
+  {
+   "arm": "tshark-mcp",
+   "ticket": "t01-new-sim-never-attaches",
+   "parsed": true,
+   "root_cause": "subscriber_unknown",
+   "root_cause_ok": true,
+   "cited": [
+    9,
+    10,
+    11,
+    12
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 1,
+   "tools": [
+    "trace_subscriber"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 67678,
+   "output_tokens": 640,
+   "turns": 2,
+   "cost_usd": 0.1465593,
+   "seconds": 7.55,
+   "problems": [],
+   "answer": "**Reply to the customer**\n\nHi, the SIM isn't faulty, so you don't need a replacement. Our subscriber database (HSS) doesn't have IMSI 001010000000103 provisioned. When the tracker tried to attach, the network asked the HSS to authenticate it twice. Both times the HSS answered \"user unknown\". The tracker is being rejected before it gets to authentication, which is why it keeps searching. We'll provision the IMSI and ask you to power-cycle the tracker. Please also check that the IMSI on the SIM matches the one you activated.\n\n```json\n{\"root_cause\": \"subscriber_unknown\", \"subscriber\": \"001010000000103\", \"evidence_frames\": [9, 10, 11, 12], \"summary\": \"The MME sent two S6a Authentication-Information-Requests for IMSI 001010000000103, and the HSS answered both with DIAMETER_ERROR_USER_UNKNOWN. The IMSI isn't provisioned in the HSS, and nothing in the capture points to a SIM fault.\", \"customer_reply\": \"Hi, the SIM isn't faulty, so you don't need a replacement. Our subscriber database (HSS) doesn't have IMSI 001010000000103 provisioned. When the tracker tried to attach, the HSS answered 'user unknown' twice, so it keeps searching. We'll provision the IMSI and ask you to power-cycle the tracker. Please also check that the IMSI on the SIM matches the one you activated.\"}\n```",
+   "passed_as_run": false
+  },
+  {
+   "arm": "tshark-only",
+   "ticket": "t02-connected-no-data",
+   "parsed": true,
+   "root_cause": "user_plane_no_return_path",
+   "root_cause_ok": true,
+   "cited": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    12
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 3,
+   "tools": [
+    "run_tshark",
+    "run_tshark",
+    "run_tshark"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 13081,
+   "output_tokens": 1240,
+   "turns": 4,
+   "cost_usd": 0.0372131,
+   "seconds": 11.7,
+   "problems": [],
+   "answer": "The APN isn't the problem. The session was created successfully, but the capture shows no reply to any ping, which points to a missing return path on the operator side.\n\n- **Session setup:** In frame 1 the device requests APN \"internet\" for IMSI 001010000000104. In frame 2 the network answers \"Request accepted\". The device was given the address 10.45.0.5.\n- **Outbound traffic:** Frames 3, 5, 7, 9 and 11 are the device's pings to 203.0.113.8, carried in the GTP tunnel. Frames 4, 6, 8, 10 and 12 show the same pings leaving the core onto the internet side. They still have the private source address 10.45.0.5, so no NAT was applied.\n- **Replies:** The capture contains no ICMP echo replies, so nothing comes back. The capture has no reject, no policy or charging messages and no timeouts.\n\n```json\n{\"root_cause\": \"user_plane_no_return_path\", \"subscriber\": \"001010000000104\", \"evidence_frames\": [1, 2, 3, 4, 5, 6, 12], \"summary\": \"The Create Session for APN 'internet' was accepted (frame 2) and the UE's pings are decapsulated and forwarded to 203.0.113.8 with the private source 10.45.0.5 (frames 4, 6, 8, 10, 12). No echo reply ever returns, which indicates missing NAT or a missing return route on the SGi/N6 side.\", \"customer_reply\": \"Your APN setting is not the problem. The network accepted your session for APN 'internet' and gave the phone the address 10.45.0.5. Your ping packets do reach our internet-facing edge, but they leave with that private address and no reply ever comes back. That points to a missing address translation (NAT) or return route on our side, not to the phone or its settings. We are passing this to our core network team to fix. Restarting the phone again will not help. We will update you once it is corrected.\"}\n```"
+  },
+  {
+   "arm": "tshark-mcp",
+   "ticket": "t02-connected-no-data",
+   "parsed": true,
+   "root_cause": "user_plane_no_return_path",
+   "root_cause_ok": true,
+   "cited": [
+    1,
+    2,
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 3,
+   "tools": [
+    "trace_subscriber",
+    "incident_summary",
+    "filter_packets"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 107763,
+   "output_tokens": 816,
+   "turns": 4,
+   "cost_usd": 0.0456003,
+   "seconds": 12.73,
+   "problems": [],
+   "answer": "The APN setting isn't the problem. The session was set up correctly, but the internet's replies never come back to the phone.\n\n```json\n{\"root_cause\": \"user_plane_no_return_path\", \"subscriber\": \"001010000000104\", \"evidence_frames\": [1, 2, 3, 5, 7, 9, 11], \"summary\": \"The Create Session for APN 'internet' was accepted (frames 1-2) and the phone got address 10.45.0.5. Its pings to 203.0.113.8 leave through the GTP-U tunnel (frames 3, 5, 7, 9, 11), and no reply or return traffic appears in the capture.\", \"customer_reply\": \"Your APN setting is fine. Our capture shows the 'internet' APN was accepted and your phone was given the address 10.45.0.5. Your pings leave the phone and reach the core network, but no replies come back. That points to a missing return route or address translation (NAT) on our internet-facing side, not to your phone or APN. We are escalating this to our core network team to fix the return path. Restarting the phone will not help. We will update you once it is fixed.\"}\n```"
+  },
+  {
+   "arm": "tshark-only",
+   "ticket": "t03-data-stopped-midday",
+   "parsed": true,
+   "root_cause": "credit_limit_reached",
+   "root_cause_ok": true,
+   "cited": [
+    11,
+    12
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 3,
+   "tools": [
+    "run_tshark",
+    "run_tshark",
+    "run_tshark"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 10104,
+   "output_tokens": 1376,
+   "turns": 4,
+   "cost_usd": 0.0270824,
+   "seconds": 13.16,
+   "problems": [],
+   "answer": "The capture shows the charging system (OCS) ending data for this device. It doesn't show a network outage.\n\n- **Frame 7 and 8:** 001010000000105 sent a Credit-Control Request and got result 2001 (success). This was at 14:01:30 UTC.\n- **Frame 11 and 12:** the next request from the same device was answered with result code 4012 (CREDIT_LIMIT_REACHED). This was at 14:02:30 UTC, which matches the time in the ticket.\n- **Other subscriber:** 001010000000106 kept getting 2001 in frames 3 to 6.\n- **Frames 9, 10, 13 and 14:** these are TCP retransmissions. They don't carry new requests or answers.\n\nThe capture dates are 2026-11-20 (14:00 to 14:03 UTC), not today's date. I'm assuming it is the right capture for this incident.\n\n```json\n{\"root_cause\": \"credit_limit_reached\", \"subscriber\": \"001010000000105\", \"evidence_frames\": [11, 12], \"summary\": \"Subscriber 001010000000105 received Credit-Control success (2001) at 14:01:30 UTC in frame 8. The next Credit-Control Answer in frame 12 returned 4012 CREDIT_LIMIT_REACHED, while the other subscriber kept getting 2001.\", \"customer_reply\": \"Hello, we found no outage. The capture shows the charging system stopped data for device 001010000000105 at about 14:02 UTC. It returned a \\\"credit limit reached\\\" result, which means the data balance or quota on this subscription is used up. That is why the device still shows as connected but passes no data. Please check the plan's balance or quota and top up or raise the limit. Data should resume after that. Another device on the same link kept working normally. Tell us if it doesn't resume.\"}\n```"
+  },
+  {
+   "arm": "tshark-mcp",
+   "ticket": "t03-data-stopped-midday",
+   "parsed": true,
+   "root_cause": "credit_limit_reached",
+   "root_cause_ok": true,
+   "cited": [
+    11,
+    12
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 4,
+   "tools": [
+    "trace_subscriber",
+    "incident_summary",
+    "filter_packets",
+    "diameter_avps"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 109406,
+   "output_tokens": 847,
+   "turns": 5,
+   "cost_usd": 0.0550953,
+   "seconds": 10.79,
+   "problems": [],
+   "answer": "```json\n{\"root_cause\":\"credit_limit_reached\",\"subscriber\":\"001010000000105\",\"evidence_frames\":[11,12],\"summary\":\"On the Gy interface, the OCS answered the PGW's credit update for IMSI 001010000000105 with an MSCC result of 4012 DIAMETER_CREDIT_LIMIT_REACHED and a Final-Unit-Action of TERMINATE (frames 11-12). Earlier updates for this IMSI succeeded (frames 7-8), and the capture shows no signalling or network fault.\",\"customer_reply\":\"Hello, we found no outage. The capture shows our charging system refused further credit for your device (IMSI 001010000000105) at the 14:02 update. It returned 'credit limit reached' with an instruction to terminate the service. The device can still look connected, but data is blocked because its balance or quota is used up. Please check the data plan and top up the balance or raise the limit. If data doesn't resume after that, reply to this ticket and we'll check again.\"}\n```"
+  },
+  {
+   "arm": "tshark-only",
+   "ticket": "t04-routers-no-data",
+   "parsed": true,
+   "root_cause": "unknown_apn",
+   "root_cause_ok": true,
+   "cited": [
+    3,
+    4,
+    7,
+    8,
+    11,
+    12
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 3,
+   "tools": [
+    "run_tshark",
+    "run_tshark",
+    "run_tshark"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 11014,
+   "output_tokens": 1322,
+   "turns": 4,
+   "cost_usd": 0.0226631,
+   "seconds": 12.87,
+   "problems": [],
+   "answer": "The capture shows the requested APN is unknown to the network, so the problem isn't a network outage.\n\n- **Failing subscriber:** IMSI 001010000000107 sent Create Session Requests in frames 3, 7 and 11. Each one asked for the APN `internet.wrong`. The network answered each in frames 4, 8 and 12 with GTPv2 cause 78, \"Missing or unknown APN\".\n- **Working subscriber:** IMSI 001010000000108 asked for `iot.example` in frames 1, 5 and 9. Each request was accepted with cause 16 in frames 2, 6 and 10.\n\n```json\n{\"root_cause\": \"unknown_apn\", \"subscriber\": \"001010000000107\", \"evidence_frames\": [3, 4, 7, 8, 11, 12], \"summary\": \"IMSI 001010000000107 repeatedly sent Create Session Requests with APN 'internet.wrong', and each was rejected with GTPv2 cause 78 (Missing or unknown APN). Another subscriber using APN 'iot.example' was accepted with cause 16 in the same capture.\", \"customer_reply\": \"Thanks for your report. Our network is working normally. The capture shows your new routers asking for the APN 'internet.wrong', which isn't provisioned on our network. We reject it with 'Missing or unknown APN', and that causes the 'PDP context activation failed' message. Your older routers work because they use a valid APN. Please correct the APN in the new routers' configuration to the one assigned to your SIMs. The working SIM in our capture uses 'iot.example', but please confirm that this is the right one for your account. Then retry. If it still fails, send us the new attempt time and we'll check again.\"}\n```"
+  },
+  {
+   "arm": "tshark-mcp",
+   "ticket": "t04-routers-no-data",
+   "parsed": true,
+   "root_cause": "unknown_apn",
+   "root_cause_ok": true,
+   "cited": [
+    3,
+    4,
+    7,
+    8,
+    11,
+    12
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 1,
+   "tools": [
+    "trace_subscriber"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 67784,
+   "output_tokens": 561,
+   "turns": 2,
+   "cost_usd": 0.024567899999999997,
+   "seconds": 7.56,
+   "problems": [],
+   "answer": "**Reply to the customer**\n\nThe problem is the APN configured on your new routers. It isn't a network fault.\n\nThe capture shows your new routers asking for the APN \"internet.wrong\" on IMSI 001010000000107. Our network rejected each of the three attempts with \"Missing or unknown APN\". Your older routers work because they use a valid APN.\n\nPlease correct the APN on the new routers to the one your older routers use, then retry. If activation still fails, send us the APN you set and the time of the attempt.\n\n```json\n{\"root_cause\": \"unknown_apn\", \"subscriber\": \"001010000000107\", \"evidence_frames\": [3, 4, 7, 8, 11, 12], \"summary\": \"The subscriber's device sent three GTPv2 Create Session Requests for APN 'internet.wrong'. Each was rejected with cause 'Missing or unknown APN'.\", \"customer_reply\": \"The fault is in the APN setting on your new routers. It is not a network issue. IMSI 001010000000107 requested the APN 'internet.wrong' three times, and our network rejected each attempt as an unknown APN. Your older routers work because they use a valid APN. Please set the new routers to the same APN as the older ones and retry. If it still fails, send us the APN you used and the time of the attempt.\"}\n```"
+  },
+  {
+   "arm": "tshark-only",
+   "ticket": "t05-cannot-attach-but-it-did",
+   "parsed": true,
+   "root_cause": "no_fault_in_capture",
+   "root_cause_ok": true,
+   "cited": [
+    2,
+    4,
+    6
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 4,
+   "tools": [
+    "run_tshark",
+    "run_tshark",
+    "run_tshark",
+    "run_tshark"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 13320,
+   "output_tokens": 1494,
+   "turns": 5,
+   "cost_usd": 0.0278,
+   "seconds": 14.56,
+   "problems": [],
+   "answer": "The capture shows no fault for SIM 001010000000109. Its attach procedures succeed. The failures in the capture belong to a different SIM.\n\n**SIM 001010000000109**\n- Frames 1\u20132: the authentication request gets a success answer (result 2001).\n- Frames 3\u20134: the location update gets a success answer (2001).\n- Frames 5\u20136: the session request for APN `iot.example` is accepted with GTPv2 cause 16, \"Request accepted\".\n\n**SIM 001010000000110**\n- Frames 7\u201312: three authentication requests, at 2 s, 12 s and 30 s, each get error 5001 (user unknown). This is a different IMSI, one digit off from the ticket's SIM. The customer may have mistyped it or swapped SIMs during testing.\n\n```json\n{\"root_cause\": \"no_fault_in_capture\", \"subscriber\": \"001010000000109\", \"evidence_frames\": [2, 4, 6], \"summary\": \"For IMSI 001010000000109 the authentication (frame 2) and location update (frame 4) succeed, and the Create Session for iot.example is accepted with cause 16 (frame 6). The only failures are for a different IMSI, 001010000000110, which gets error 5001 (user unknown) in frames 8, 10 and 12.\", \"customer_reply\": \"Thank you for your report. In the capture you sent, SIM 001010000000109 attaches normally. Authentication and location update succeed, and the data session on APN iot.example is accepted. The failing requests in the capture are for a different SIM, 001010000000110. The network reports that SIM as unknown. Please check which SIM was in the device during the test. If 109 still fails, send a new capture taken while that SIM is being tested, with the exact time of the attempt. If 110 is meant to be in service, tell us and we will check its provisioning.\"}\n```"
+  },
+  {
+   "arm": "tshark-mcp",
+   "ticket": "t05-cannot-attach-but-it-did",
+   "parsed": true,
+   "root_cause": "no_fault_in_capture",
+   "root_cause_ok": true,
+   "cited": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "nonexistent": [],
+   "grounded": true,
+   "reply_missing": [],
+   "reply_forbidden": [],
+   "reply_scored": true,
+   "passed": true,
+   "calls": 4,
+   "tools": [
+    "trace_subscriber",
+    "incident_summary",
+    "diameter_transactions",
+    "filter_packets"
+   ],
+   "tool_errors": 0,
+   "input_tokens": 142173,
+   "output_tokens": 1280,
+   "turns": 5,
+   "cost_usd": 0.0555688,
+   "seconds": 16.35,
+   "problems": [],
+   "answer": "The capture shows SIM 001010000000109 attaching normally. The failures in it belong to a different SIM, 001010000000110.\n\n**What the capture shows for 001010000000109**\n- Authentication (AIR/AIA, frames 1\u20132) succeeded.\n- The location update (ULR/ULA, frames 3\u20134) succeeded.\n- The data session (Create Session Request/Response, frames 5\u20136) was accepted for APN `iot.example`.\n\n**What fails**\n- Three authentication requests (frames 7, 9 and 11) fail with DIAMETER_ERROR_USER_UNKNOWN (5001).\n- They are for IMSI 001010000000110, which is one digit higher than the ticket's IMSI.\n- The HSS has no subscriber record for that IMSI.\n\nThe ticket's SIM works in this capture, so the fault is probably a different SIM or a mistyped IMSI. The SIM that was actually tested may be \u2026110.\n\n```json\n{\"root_cause\": \"no_fault_in_capture\", \"subscriber\": \"001010000000109\", \"evidence_frames\": [1, 2, 3, 4, 5, 6], \"summary\": \"IMSI 001010000000109 completes authentication, location update and session creation successfully (APN iot.example). The only failures in the capture are three AIRs (frames 7, 9, 11) for a different IMSI, 001010000000110, which the HSS rejects as unknown user.\", \"customer_reply\": \"Thank you for your report. In the capture we received, SIM 001010000000109 attaches normally: authentication, location update and data session all succeed. The failures in the capture are for a different SIM, 001010000000110, which is not provisioned in our subscriber database. Please check which SIM you were testing and whether the IMSI was read correctly. If the failing SIM really is ...110, tell us and we will check its provisioning. If ...109 still fails, send a new capture taken during a failed attempt, with the exact time.\"}\n```",
+   "passed_as_run": false
+  }
+ ]
+}
