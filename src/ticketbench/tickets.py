@@ -507,7 +507,7 @@ T06 = Ticket(
         Check("gtp_72", f"gtpv2.cause == {GTP_SYSTEM_FAILURE}"),
     ),
     reply_must=(
-        r"(same|one|shared|single|identical) (static )?(ip|address)|(ip|address).{0,40}"
+        r"(same|one|shared|single|identical) (static |fixed )?(ip|address)|(ip|address).{0,40}"
         r"\b(both|two)\b.{0,20}apns?",
         r"\bapns?\b",
     ),
@@ -663,12 +663,15 @@ T09 = Ticket(
     ),
     reply_must=(
         r"(not (appear|present|seen|included|in (the|this) capture)|no (trace|sign|messages|"
-        r"traffic|signalling|signaling|record)|does(n't| not) (appear|show|contain|include)|"
+        r"traffic|signalling|signaling|record|activity)|does(n't| not) (appear|show|contain|"
+        r"include)|"
         r"isn't in|absent|never (appears|shows))",
     ),
     reply_must_not=(
         r"(not provisioned|user unknown)",
-        r"(attached|connected) (successfully|normally)",
+        # about this SIM; the other SIMs in the capture did attach normally
+        rf"({IMSI(17)[-3:]}\b|(your|the|this) (sim|device))[^.]{{0,40}}\b(attached|connected) "
+        r"(successfully|normally)",
     ),
     reference_reply=(
         "We can't tell yet: this SIM does not appear anywhere in the capture. The capture only "
